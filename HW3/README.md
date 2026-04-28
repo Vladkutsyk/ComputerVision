@@ -94,7 +94,8 @@
 
 5. **Чиста структура** — датасет вже розділений на `seg_train` / `seg_test`, не містить пошкоджених файлів.
 
-![alt text](image-1.png)
+<img width="1389" height="1811" alt="image-1" src="https://github.com/user-attachments/assets/dd5f9d3d-dae7-44ee-8a4b-98101e2c5c94" />
+
 
 ---
 
@@ -134,7 +135,8 @@ rescale = 1./255
 
 **Обґрунтування вибору аугментацій:** природні та міські сцени зустрічаються під різними кутами та у різних масштабах, тому ротація, зсув та zoom є доцільними. Горизонтальне відображення застосовується, оскільки ліс, море або будівля однаково впізнаванні у дзеркальному вигляді. Вертикальний flip не застосовувався, щоб зберегти природну орієнтацію сцен (небо завжди вгорі).
 
-![alt text](image-2.png)
+<img width="1589" height="584" alt="image-2" src="https://github.com/user-attachments/assets/d245469e-e5c2-4fcd-92aa-675e7170e973" />
+
 
 ---
 
@@ -218,7 +220,8 @@ Model 2 розвиває послідовну парадигму VGGNet у тр�
 
 Ключова інновація GoogLeNet — **Inception модуль**: замість вибору одного розміру фільтра, усі розміри застосовуються **паралельно**, а результати конкатенуються:
 
-![alt text](image-3.png)
+<img width="779" height="403" alt="image-3" src="https://github.com/user-attachments/assets/b686abd7-7e16-429a-af90-908fc369af8f" />
+
 
 ```
               ┌──────────────┬────────────────┬────────────────┬──────────────────┐
@@ -312,7 +315,8 @@ Model 3 має у **13.7× менше параметрів** ніж Model 1, п�
 
 > LR знижувався у всіх моделях.
 
-![alt text](image-4.png)
+<img width="1790" height="985" alt="image-4" src="https://github.com/user-attachments/assets/53403e2d-a23f-4e7d-9fc2-7e3968566cc1" />
+
 
 ---
 
@@ -408,7 +412,8 @@ Model 3 має у **13.7× менше параметрів** ніж Model 1, п�
 | glacier | sea | 16 | 2.9% |
 
 
-![alt text](image-5.png)
+<img width="2145" height="691" alt="image-5" src="https://github.com/user-attachments/assets/3f6c6d15-c632-4bd9-b9f5-6b3301ddd272" />
+
 
 
 ### Приклади передбаченя
