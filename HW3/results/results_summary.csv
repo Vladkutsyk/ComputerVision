@@ -1,0 +1,4 @@
+Модель,Архітектура,BatchNorm,Параметрів,Шарів,Епох (факт),Best Val Acc,Test Accuracy,Test Loss,Weighted F1
+Model 1 — VGGNet-BN,Sequential,✅,"21,655,846",24,45,0.8844,0.8717 (87.17%),0.3825,0.8713
+Model 2 — DeepNet Wide,Sequential,✅,"2,724,294",24,50,0.9053,0.8937 (89.37%),0.3134,0.8934
+Model 3 — GoogLeNet-Inception,Functional (Inception),✅,"1,584,206",72,50,0.9044,0.8940 (89.40%),0.3605,0.8937
