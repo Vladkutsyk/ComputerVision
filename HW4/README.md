@@ -8,7 +8,7 @@ Object detection on thermal (infrared) images using YOLOv8s with custom preproce
 ## Quick Start
 
 ```bash
-# 1. Open the notebook in Google Colab
+# 1. Open FLIR_Notebook_v2.ipynb in Google Colab
 #    Runtime → Change runtime type → GPU (T4)
 
 # 2. Get your Kaggle API token
@@ -21,41 +21,39 @@ Object detection on thermal (infrared) images using YOLOv8s with custom preproce
 
 ---
 
-## Project Structure
+## Repository Structure
 
 ```
-flir_work/
-├── raw/                        # Original downloaded images (auto-created)
-│   ├── train/thermal_8_bit/
-│   └── val/thermal_8_bit/
-├── dataset/                    # Preprocessed + YOLO-formatted data
-│   ├── images/train/           # CLAHE-processed 3-channel JPEGs
-│   ├── images/val/
-│   ├── labels/train/           # YOLO .txt annotations
-│   └── labels/val/
-├── runs/single_phase/          # Training artifacts (Ultralytics output)
-│   ├── weights/
-│   │   ├── best.pt             # ← best checkpoint (use this for inference)
-│   │   └── last.pt
-│   ├── results.csv             # per-epoch metrics
-│   ├── results.png
-│   ├── BoxF1_curve.png
-│   ├── BoxP_curve.png
-│   ├── BoxR_curve.png
-│   ├── BoxPR_curve.png
-│   ├── confusion_matrix.png
-│   ├── confusion_matrix_normalized.png
-│   ├── labels.jpg
-│   ├── train_batch*.jpg        # sample training batches
-│   └── val_batch*_pred.jpg     # validation predictions vs labels
-└── outputs/                    # Notebook-generated figures
-    ├── eda_class_distribution.png
-    ├── eda_class_examples.png
-    ├── preprocessing_stages.png
-    ├── training_curves.png
-    ├── confusion_matrix.png
-    ├── detection_examples.png
-    └── detection_multiclass.png
+HW4/
+├── FLIR_Notebook_v1.ipynb        # Earlier version (two-phase training)
+├── FLIR_Notebook_v2.ipynb        # Current version (single-phase + warmup)
+├── README.md
+├── referat_thermal_yolo.pdf      # Theoretical writeup
+└── flir_export/
+    ├── outputs/                  # Notebook-generated figures
+    │   ├── eda_class_distribution.png
+    │   ├── eda_class_examples.png
+    │   ├── preprocessing_stages.png
+    │   ├── training_curves.png
+    │   ├── confusion_matrix.png
+    │   ├── detection_examples.png
+    │   └── detection_multiclass.png
+    └── runs/
+        └── single_phase/         # Ultralytics training artifacts
+            ├── weights/
+            │   ├── best.pt       # ← best checkpoint (use for inference)
+            │   └── last.pt
+            ├── results.csv       # per-epoch metrics
+            ├── results.png
+            ├── BoxF1_curve.png
+            ├── BoxP_curve.png
+            ├── BoxR_curve.png
+            ├── BoxPR_curve.png
+            ├── confusion_matrix.png
+            ├── confusion_matrix_normalized.png
+            ├── labels.jpg
+            ├── train_batch*.jpg  # sample training batches
+            └── val_batch*_pred.jpg
 ```
 
 ---
@@ -63,7 +61,7 @@ flir_work/
 ## Pipeline Overview
 
 ```
-Raw thermal JPEG (640×512, grayscale)
+Raw thermal JPEG (640×512, grayscale, FLIR 8-bit)
         │
         ▼
   1. Min-Max Normalisation   → equalise brightness across frames
@@ -74,19 +72,19 @@ Raw thermal JPEG (640×512, grayscale)
         │
         ▼
   COCO JSON annotations  →  YOLO .txt (filtered to 3 classes)
+  train: 7,859 label files  |  val: 1,360 label files
         │
         ▼
-  Bike oversampling  →  target ~40% of max-class count
+  Class balance check → bike already ~24% of max class, no oversampling needed
         │
         ▼
-  YOLOv8s training
-    · 20 epochs total
-    · warmup 5 epochs (lr ramps 0 → 1e-4)
-    · differential LR: backbone=1e-5, head=1e-4
-    · fliplr=0.5 (only augmentation)
+  YOLOv8s training — single phase, 20 epochs
+    · warmup 5 epochs  (lr ramps 0 → 1e-4)
+    · differential LR: backbone = 1e-5, head = 1e-4
+    · fliplr=0.5  (only augmentation)
         │
         ▼
-  Evaluation: mAP@50, mAP@50-95, F1, MCC, classification report
+  Evaluation: mAP@50/50-95, F1 per class, MCC, classification report
 ```
 
 ---
@@ -97,11 +95,13 @@ Raw thermal JPEG (640×512, grayscale)
 |---|---|
 | **Source** | [FLIR Thermal Reduced — Kaggle](https://www.kaggle.com/datasets/albertofv/flir-thermal-images-dataset-reduced) |
 | **Format** | COCO JSON → converted to YOLO TXT |
-| **Classes used** | `person` (0) · `car` (1) · `bike` (2) |
+| **Classes** | `person` (0) · `car` (1) · `bike` (2) |
 | **Input size** | 640 × 512 px, 8-bit grayscale |
+| **Train images** | 8,862 (after preprocessing) |
+| **Val images** | 1,366 |
 | **Annotation** | Bounding boxes only (detection task) |
 
-> `light` and `sign` classes were excluded — absent from this reduced dataset.
+> `light` and `sign` classes excluded — not present in this reduced dataset.
 
 ---
 
@@ -112,31 +112,17 @@ Raw thermal JPEG (640×512, grayscale)
 | Base model | `yolov8s.pt` (pretrained COCO) |
 | Image size | 640 |
 | Epochs | 20 |
-| Batch | auto (`-1`) |
+| Batch | auto (`-1`) → T4 GPU |
 | Peak LR (head) | `1e-4` |
-| Backbone LR | `1e-5` (differential LR via callback) |
+| Backbone LR | `1e-5` (10× lower, via `on_train_start` callback) |
 | LR schedule | Cosine decay → `1e-6` |
 | Warmup epochs | 5 |
-| Augmentation | `fliplr=0.5` only |
+| Augmentation | `fliplr=0.5` only — all others disabled |
 | Conf threshold | `0.15` |
 
 ### Why single-phase + warmup instead of freeze/unfreeze
 
-The dataset is thermal (large domain gap vs COCO RGB). Freezing the backbone then unfreezing caused instability at phase boundary. A single phase with:
-- **warmup** protecting weights at the start
-- **differential LR** (backbone 10× slower) allowing gentle adaptation
-
-achieved more stable convergence.
-
-### Why bike oversampling
-
-`bike` annotations are ~10× fewer than `person`/`car`. Dynamic oversampling factor:
-
-```python
-f = min(6, floor(0.4 * max(N_person, N_car) / N_bike))
-```
-
-targets ~40% of the dominant class count without risking severe overfitting.
+Thermal images have a large domain gap vs COCO RGB. Two-phase training caused instability at the phase boundary (validation loss spike). Single phase with warmup + differential LR gave smoother convergence: backbone updates 10× slower, preventing catastrophic forgetting of COCO features while still adapting to thermal domain.
 
 ---
 
@@ -146,39 +132,47 @@ targets ~40% of the dominant class count without risking severe overfitting.
 
 ![Training Curves](flir_export/outputs/training_curves.png)
 
-Dashed line = end of warmup (epoch 5). Loss curves from `runs/single_phase/results.csv`.
+Dashed line = end of warmup (epoch 5). Source: `flir_export/runs/single_phase/results.csv`.
 
-### Per-class Curves (from `runs/single_phase/`)
+### Per-class Curves
 
-| Curve | File |
+| Curve | What it shows |
 |---|---|
-| F1 vs confidence | `BoxF1_curve.png` |
-| Precision vs confidence | `BoxP_curve.png` |
-| Recall vs confidence | `BoxR_curve.png` |
-| Precision-Recall | `BoxPR_curve.png` |
+| [`BoxF1_curve.png`](flir_export/runs/single_phase/BoxF1_curve.png) | F1 vs confidence threshold |
+| [`BoxP_curve.png`](flir_export/runs/single_phase/BoxP_curve.png) | Precision vs confidence |
+| [`BoxR_curve.png`](flir_export/runs/single_phase/BoxR_curve.png) | Recall vs confidence |
+| [`BoxPR_curve.png`](flir_export/runs/single_phase/BoxPR_curve.png) | Precision-Recall curve |
+
+### Metrics Summary
+
+**Official YOLO validation** (IoU threshold sweep):
+
+| Metric | All classes | person | car | bike |
+|---|---|---|---|---|
+| **mAP@50** | **0.778** | 0.830 | 0.885 | 0.620 |
+| **mAP@50-95** | **0.424** | — | — | — |
+| Precision | 0.781 | 0.856 | 0.805 | 0.682 |
+| Recall | 0.700 | 0.698 | 0.837 | 0.566 |
+| F1 | — | 0.769 | 0.821 | 0.619 |
+
+**Sklearn metrics** (per GT box, IoU ≥ 0.5, matched detections only):
+
+| Metric | person | car | bike | macro |
+|---|---|---|---|---|
+| F1 | 0.930 | 0.956 | 0.841 | **0.909** |
+| Recall | 0.870 | 0.920 | 0.730 | — |
+
+| Global metric | Value |
+|---|---|
+| **MCC** | **0.820** |
+| Accuracy | 0.890 |
 
 ### Confusion Matrix
 
 ![Confusion Matrix](flir_export/outputs/confusion_matrix.png)
 
-Rows = true label, columns = predicted label. `missed` = GT boxes with no matching detection at IoU ≥ 0.5.
-
-Normalized version: `runs/single_phase/confusion_matrix_normalized.png`
-
-### Metrics Summary
-
-> Replace with your actual values after running the notebook.
-
-| Metric | Value |
-|---|---|
-| mAP@50 | — |
-| mAP@50-95 | — |
-| Precision (mean) | — |
-| Recall (mean) | — |
-| F1 macro | — |
-| MCC | — |
-
-Per-class AP50 is printed in cell **9 · Evaluation Metrics**.
+`missed` row = GT boxes not matched by any detection at IoU ≥ 0.5.  
+Normalised version: [`runs/single_phase/confusion_matrix_normalized.png`](flir_export/runs/single_phase/confusion_matrix_normalized.png)
 
 ---
 
@@ -186,32 +180,25 @@ Per-class AP50 is printed in cell **9 · Evaluation Metrics**.
 
 ### EDA
 
-| File | Description |
-|---|---|
-| `outputs/eda_class_distribution.png` | Annotation counts per class (train / val) |
-| `outputs/eda_class_examples.png` | One GT example per class with bbox |
-
 ![EDA Distribution](flir_export/outputs/eda_class_distribution.png)
 
-### Preprocessing
+![EDA Examples](flir_export/outputs/eda_class_examples.png)
+
+### Preprocessing (4 key stages)
 
 ![Preprocessing Stages](flir_export/outputs/preprocessing_stages.png)
 
-Four key stages on one sample frame: original → bilateral → CLAHE → unsharp mask.
+Original → Bilateral denoise → CLAHE → Unsharp mask.
 
 ### Detections
 
-| File | Description |
-|---|---|
-| `outputs/detection_examples.png` | 2 successful detections per class (conf ≥ 0.15) |
-| `outputs/detection_multiclass.png` | Single frame with multiple classes detected simultaneously |
+![Detection Examples](flir_export/outputs/detection_examples.png)
+
+*2 successful detections per class at conf ≥ 0.15.*
 
 ![Multi-class Detection](flir_export/outputs/detection_multiclass.png)
 
-### Training Batch Samples (Ultralytics)
-
-`runs/single_phase/train_batch*.jpg` — mosaic of training samples with GT boxes.  
-`runs/single_phase/val_batch*_pred.jpg` — validation predictions vs ground truth side by side.
+*Multiple classes detected simultaneously on one frame.*
 
 ---
 
@@ -220,43 +207,38 @@ Four key stages on one sample frame: original → bilateral → CLAHE → unshar
 ```python
 from ultralytics import YOLO
 
-model = YOLO('flir_work/runs/single_phase/weights/best.pt')
+model = YOLO('flir_export/runs/single_phase/weights/best.pt')
 
 results = model.predict(
     'your_thermal_image.jpg',
-    conf=0.15,      # lower threshold needed for thermal (weak signatures)
-    iou=0.5,        # NMS IoU threshold
-    agnostic_nms=True,  # suppress cross-class duplicates on same object
+    conf=0.15,           # lower threshold for weak thermal signatures
+    iou=0.5,             # NMS IoU threshold
+    agnostic_nms=True,   # suppress cross-class duplicates on same object
 )
 results[0].show()
 ```
 
-> **Note on `agnostic_nms=True`:** use this if you see duplicate boxes on the same object from different classes — standard NMS only suppresses within-class duplicates.
+> **`agnostic_nms=True`** — use when you see duplicate boxes on the same object from different classes. Standard NMS only suppresses within-class duplicates.
 
 ---
 
 ## Requirements
 
+Installed automatically by the first notebook cell:
 ```
-ultralytics
-kaggle
-opencv-python
-numpy
-pandas
-matplotlib
-scikit-learn
-torch
-tqdm
+ultralytics  kaggle
 ```
 
-All installed automatically by the first notebook cell (`!pip install ultralytics kaggle`).  
-Remaining packages are pre-installed in Google Colab.
+Pre-installed in Google Colab:
+```
+opencv-python  numpy  pandas  matplotlib  scikit-learn  torch  tqdm
+```
 
 ---
 
 ## Known Limitations
 
-- **`bike` class** has lower AP due to fewer training samples even after oversampling
-- **Confidence threshold 0.15** may produce false positives on background heat sources
-- Model was trained on FLIR ADAS dataset (California, summer) — may generalise poorly to other cameras or weather conditions
-- `light` and `sign` classes are not supported (not present in reduced dataset)
+- **`bike` AP (0.62)** is lower than `car` (0.88) and `person` (0.83) — fewer training instances even within the balanced dataset
+- **Conf = 0.15** is necessary for thermal but increases false positives on background heat sources (trees, warm pavement)
+- Model trained on FLIR ADAS (California, summer daytime/night) — may generalise poorly to rain, fog, or different camera models
+- `light` and `sign` classes are not supported
