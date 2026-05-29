@@ -144,7 +144,7 @@ targets ~40% of the dominant class count without risking severe overfitting.
 
 ### Training Curves
 
-![Training Curves](outputs/training_curves.png)
+![Training Curves](flir_export/outputs/training_curves.png)
 
 Dashed line = end of warmup (epoch 5). Loss curves from `runs/single_phase/results.csv`.
 
@@ -159,7 +159,7 @@ Dashed line = end of warmup (epoch 5). Loss curves from `runs/single_phase/resul
 
 ### Confusion Matrix
 
-![Confusion Matrix](outputs/confusion_matrix.png)
+![Confusion Matrix](flir_export/outputs/confusion_matrix.png)
 
 Rows = true label, columns = predicted label. `missed` = GT boxes with no matching detection at IoU ≥ 0.5.
 
@@ -191,11 +191,11 @@ Per-class AP50 is printed in cell **9 · Evaluation Metrics**.
 | `outputs/eda_class_distribution.png` | Annotation counts per class (train / val) |
 | `outputs/eda_class_examples.png` | One GT example per class with bbox |
 
-![EDA Distribution](outputs/eda_class_distribution.png)
+![EDA Distribution](flir_export/outputs/eda_class_distribution.png)
 
 ### Preprocessing
 
-![Preprocessing Stages](outputs/preprocessing_stages.png)
+![Preprocessing Stages](flir_export/outputs/preprocessing_stages.png)
 
 Four key stages on one sample frame: original → bilateral → CLAHE → unsharp mask.
 
@@ -206,7 +206,7 @@ Four key stages on one sample frame: original → bilateral → CLAHE → unshar
 | `outputs/detection_examples.png` | 2 successful detections per class (conf ≥ 0.15) |
 | `outputs/detection_multiclass.png` | Single frame with multiple classes detected simultaneously |
 
-![Multi-class Detection](outputs/detection_multiclass.png)
+![Multi-class Detection](flir_export/outputs/detection_multiclass.png)
 
 ### Training Batch Samples (Ultralytics)
 
