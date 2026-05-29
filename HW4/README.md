@@ -172,7 +172,8 @@ Dashed line = end of warmup (epoch 5). Source: `flir_export/runs/single_phase/re
 ![Confusion Matrix](flir_export/outputs/confusion_matrix.png)
 
 `missed` row = GT boxes not matched by any detection at IoU ≥ 0.5.  
-Normalised version: [`runs/single_phase/confusion_matrix_normalized.png`](flir_export/runs/single_phase/confusion_matrix_normalized.png)
+YOLO version: [`runs/single_phase/confusion_matrix.png`](flir_export/runs/single_phase/confusion_matrix.png)
+Normalised YOLO version: [`runs/single_phase/confusion_matrix_normalized.png`](flir_export/runs/single_phase/confusion_matrix_normalized.png)
 
 ---
 
